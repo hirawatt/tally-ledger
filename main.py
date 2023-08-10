@@ -26,14 +26,15 @@ col1, col2 = st.columns(2)
 date = col1.date_input("Select Date")
 output_type = col2.radio("Select output type", options=["Business", "Investment"])
 
+# TODO: add data validation logic
+def data_validation():
+    return True
+
+st.info("Testing")
 # Read uploaded xlsx file
 if ledger is not None:
-    text_contents = '''This is some text'''
-    st.download_button('Download Tally XML', text_contents, use_container_width=True)
     df = pd.read_excel(ledger, sheet_name='Sheet1', header=None)
     st.dataframe(df, use_container_width=True)
-    #xml = df.to_xml()
-    #st.download_button('Download Tally XML', xml, 'download.csv', 'text/csv')
 
 st.sidebar.subheader("XML Testing")
 xml_file = st.sidebar.file_uploader("Upload Exported Tally XML", type=["xml"])
@@ -59,6 +60,7 @@ doc, tag, text, line = Doc().ttl()
 
 with tag('ENVELOPE'):
     # 12 entries for each trade
+    doc.asis('<!--HirawatTech watermark-->')
     # TODO: add date/year from excel
     line('DSPVCHDATE', '7-Jul-23')
     line('DSPVCHLEDACCOUNT', 'Stock')
@@ -86,7 +88,13 @@ with tag('ENVELOPE'):
 
 f2_str = indent(doc.getvalue())
 
+data_valid = data_validation()
+if data_valid:
+    st.download_button('Download Tally XML', f2_str, 'download.xml', 'application/xml', use_container_width=True)
+else:
+    st.warning(data_valid)
+
 # Display comparison
-co1, co2, co3 = st.columns(3)
+co1, co2 = st.columns(2)
 co1.code(f1_str, language="xml")
 co2.code(f2_str, language="xml")
