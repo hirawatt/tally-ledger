@@ -71,10 +71,9 @@ with open('data-new/nse_janmangal.xml', 'rb') as file1:
     f1_str = f1.decode('utf-16')
     #f1_str = f1.decode('utf-8')
 
-# Create XML file
-doc, tag, text, line = Doc().ttl()
-
 def create_xml_from_ledger():
+    # Create XML file
+    doc, tag, text, line = Doc().ttl()
     doc.asis('<!--HirawatTech watermark-->')
     with tag('ENVELOPE'):
         # 12 entries for each trade
@@ -110,12 +109,10 @@ def create_xml_from_ledger():
 data_valid = data_validation()
 if data_valid:
     f2_str = create_xml_from_ledger()
-    #f2_str = indent(doc.getvalue())
     st.download_button('Download Tally XML', f2_str, 'download.xml', 'application/xml', use_container_width=True)
+    # Display comparison
+    co1, co2 = st.columns(2)
+    co1.code(f1_str, language="xml")
+    co2.code(f2_str, language="xml")
 else:
     st.warning(data_valid)
-
-# Display comparison
-co1, co2 = st.columns(2)
-co1.code(f1_str, language="xml")
-co2.code(f2_str, language="xml")
