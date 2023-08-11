@@ -68,9 +68,11 @@ if ledger is not None:
     df_subset_c4_trades = df_subset_c4[df_subset_c4.str.contains("Dl", case=True)]
     st.write(df.iloc[df_subset_c4_trades.index])
 
-    date1 = df_subset.iloc[0][0].strftime('%d-%b-%y')
-    tick1 = df_subset.iloc[0][4]
-    print("First Data: ", date1, tick1)
+    # Data Processing
+    # FIXME: add number of entries logic
+    no_of_trades = df_trades.shape[0]
+    no_of_bank_entries = df_bank.shape[0]
+    st.write(df_bank[11].iloc[0])
 
 st.sidebar.info("XML Testing")
 xml_file = st.sidebar.file_uploader("Upload Exported Tally XML", type=["xml"])
@@ -91,45 +93,83 @@ with open('data-new/nse_janmangal.xml', 'rb') as file1:
     f1_str = f1.decode('utf-16')
     #f1_str = f1.decode('utf-8')
 
+# FIXME: debit/credit/balance logic
+def check_dcb(df_row):
+    # row 9 - debit, row 10 - credit, row 11 - balance
+    if df_row[9] != "nan":
+        value = df_row[9]
+    elif df_row[10] != "nan":
+        value = df_row[10]
+    else:
+        value = df_row[11]
+    return value
+
 def create_xml_from_ledger():
     # Create XML file
     doc, tag, text, line = Doc().ttl()
     doc.asis('<!--HirawatTech watermark-->')
     with tag('ENVELOPE'):
-        # 12 Tally XML entries for bank entry
         doc.asis('<!--Bank Entry-->')
-        # TODO: add date/year from excel
-        line('DSPVCHDATE', f'{date1}')
-        line('DSPVCHLEDACCOUNT', f'{tick1}')
-        line('NAMEFIELD', '')
-        line('INFOFIELD', '')
-        line('INDDEVDCREATDBY', '')
-        line('INDDEVDCREATTIME', '')
-        line('INDDEVDCHKBY', '')
-        line('INDDEVDATEBY', '')
-        line('DSPVCHTYPE', 'placeholder')
-        line('DSPVCHDRAMT', '')
-        line('DSPVCHCRAMT', 'placeholder')
-        line('DSPEXPLVCHNUMBER', 'placeholder')
-        doc.asis('<!--testing-->')
+        for i in range(0, no_of_bank_entries):
+            date = df_bank[0].iloc[i].strftime('%d-%b-%y')
+            tick = df_bank[4].iloc[i]
+            amount = df_bank[9].iloc[i]
+            print(f"Bank Data {i}: ", date, tick, amount)
+            # 12 Tally XML entries for bank entry
+            # TODO: add date/year from excel
+            line('DSPVCHDATE', f'{date}')
+            line('DSPVCHLEDACCOUNT', f'{tick}')
+            line('NAMEFIELD', '')
+            line('INFOFIELD', '')
+            line('INDDEVDCREATDBY', '')
+            line('INDDEVDCREATTIME', '')
+            line('INDDEVDCHKBY', '')
+            line('INDDEVDATEBY', '')
+            line('DSPVCHTYPE', 'placeholder')
+            line('DSPVCHDRAMT', '')
+            line('DSPVCHCRAMT', f'{amount}')
+            line('DSPEXPLVCHNUMBER', 'placeholder')
+
         doc.asis('<!--Trades Entry-->')
-        # FIXME: add number of entries logic
-        print("test")
-        no_of_trades = df_trades.shape[0]
         for i in range(0, no_of_trades):
+            date = df_trades[0].iloc[i].strftime('%d-%b-%y')
+            tick = df_trades[5].iloc[i]
+            shares = df_trades[6].iloc[i]
+            price = df_trades[7].iloc[i]
+            amount = round(shares * price, 2)
+            print(f"Trades Data {i}: ", date, tick, shares, price)
             # Business/Investment logic
             if output_type == "Business":
                 # Sale/Purchase of shares logic
-                if df_trades[6].iloc[i] > 0:
+                if shares > 0:
                     line('DSPVCHEXPLACCOUNT', 'Purchase of Shares')
                 else:
                     line('DSPVCHEXPLACCOUNT', 'Sale of Shares')
             elif output_type == "Investment":
-                line('DSPVCHEXPLACCOUNT', 'Invetment in Shares')
-            # TODO: add for loop based on number of excel entries
+                line('DSPVCHEXPLACCOUNT', 'Investment in Shares')
             with tag('DSPVCHEXPLVALUE'):
-                line('DSPVCHEXPLDRAMTEXCELEXPORT', '10')
+                line('DSPVCHEXPLDRAMTEXCELEXPORT', f'{amount}')
                 line('DSPVCHEXPLCRAMTEXCELEXPORT', '')
+            line('DSPVCHDATE', f'{date}')
+            line('DSPVCHSTOCKITEM', f'{tick}')
+            line('DSPVCHBILLEDQTY', f'{abs(shares)} qnty')
+            line('DSPVCHRATE', f'{price}/qnty')
+            line('DSPVCHVALUE', f'{amount}')
+            # FIXME: STT, GST & other charges logic
+            line('DSPVCHEXPLACCOUNT', 'S T T')
+            with tag('DSPVCHEXPLVALUE'):
+                line('DSPVCHEXPLDRAMTEXCELEXPORT', f'{amount}')
+                line('DSPVCHEXPLCRAMTEXCELEXPORT', '')
+            line('DSPVCHEXPLACCOUNT', 'GST')
+            with tag('DSPVCHEXPLVALUE'):
+                line('DSPVCHEXPLDRAMTEXCELEXPORT', f'{amount}')
+                line('DSPVCHEXPLCRAMTEXCELEXPORT', '')
+            line('DSPVCHEXPLACCOUNT', 'Stamp & Other Charges')
+            with tag('DSPVCHEXPLVALUE'):
+                line('DSPVCHEXPLDRAMTEXCELEXPORT', f'{amount}')
+                line('DSPVCHEXPLCRAMTEXCELEXPORT', '')
+            line('DSPEXPLVCHNUMBER', '')
+            # FIXME: update Journal Entry
     return indent(doc.getvalue())
 
 data_valid = data_validation()
