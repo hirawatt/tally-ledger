@@ -36,9 +36,9 @@ ledger = st.sidebar.file_uploader("Upload Ledger Contract Note", type=["xlsx"])
 # Read uploaded xlsx file
 if ledger is not None:
     df = pd.read_excel(ledger, sheet_name='Sheet1', header=None)
-    st.dataframe(df, use_container_width=True)
+    #st.dataframe(df, use_container_width=True)
 
-    # TODO: Extracting values form Excel
+    # Extracting values form Excel
     # FIXME: simplify logic
     col1_value = df[0].str.startswith("Total")
     for i in col1_value:
@@ -46,11 +46,31 @@ if ledger is not None:
             total_index = col1_value.tolist().index(True)
     
     df_subset = df.iloc[(total_index+6):]
-    st.write(df_subset)
+    #st.write(df_subset)
+    # Column 1 of excel sheet
+    df_subset_c1 = df_subset.loc[:, 1].dropna()
+    df_subset_c4 = df_subset.loc[:, 4].dropna()
+    #st.write(df_subset_c1)
+    st.write(df_subset_c4)
+    # journal entry
+    df_subset_c1_j = df_subset_c1[df_subset_c1.str.startswith("J")]
+    df_journal = df.iloc[df_subset_c1_j.index]
+    st.write(df_journal)
+    # bank entry
+    df_subset_c1_b = df_subset_c1[df_subset_c1.str.startswith("B")]
+    df_bank = df.iloc[df_subset_c1_b.index]
+    st.write(df_bank)
+    # trades entry
+    df_subset_c1_date = df_subset_c1[df_subset_c1.str.contains("/")]
+    df_trades = df.iloc[df_subset_c1_date.index]
+    st.write(df_trades)
+    # FIXME: edge case: 2 trades with summed up charges | trades entry alternative
+    df_subset_c4_trades = df_subset_c4[df_subset_c4.str.contains("Dl", case=True)]
+    st.write(df.iloc[df_subset_c4_trades.index])
+
     date1 = df_subset.iloc[0][0].strftime('%d-%b-%y')
     tick1 = df_subset.iloc[0][4]
     print("First Data: ", date1, tick1)
-
 
 st.sidebar.info("XML Testing")
 xml_file = st.sidebar.file_uploader("Upload Exported Tally XML", type=["xml"])
@@ -76,7 +96,8 @@ def create_xml_from_ledger():
     doc, tag, text, line = Doc().ttl()
     doc.asis('<!--HirawatTech watermark-->')
     with tag('ENVELOPE'):
-        # 12 entries for each trade
+        # 12 Tally XML entries for bank entry
+        doc.asis('<!--Bank Entry-->')
         # TODO: add date/year from excel
         line('DSPVCHDATE', f'{date1}')
         line('DSPVCHLEDACCOUNT', f'{tick1}')
@@ -91,14 +112,19 @@ def create_xml_from_ledger():
         line('DSPVCHCRAMT', 'placeholder')
         line('DSPEXPLVCHNUMBER', 'placeholder')
         doc.asis('<!--testing-->')
+        doc.asis('<!--Trades Entry-->')
         # FIXME: add number of entries logic
-        no_of_entries = 3
-        for i in range(0, no_of_entries):
-            # business/investment logic
+        print("test")
+        no_of_trades = df_trades.shape[0]
+        for i in range(0, no_of_trades):
+            # Business/Investment logic
             if output_type == "Business":
-                # TODO: add Sale/Purchase logic
-                line('DSPVCHEXPLACCOUNT', 'Sale of Shares')
-            elif output_type == "Invetment":
+                # Sale/Purchase of shares logic
+                if df_trades[6].iloc[i] > 0:
+                    line('DSPVCHEXPLACCOUNT', 'Purchase of Shares')
+                else:
+                    line('DSPVCHEXPLACCOUNT', 'Sale of Shares')
+            elif output_type == "Investment":
                 line('DSPVCHEXPLACCOUNT', 'Invetment in Shares')
             # TODO: add for loop based on number of excel entries
             with tag('DSPVCHEXPLVALUE'):
