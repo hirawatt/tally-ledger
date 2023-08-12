@@ -124,7 +124,6 @@ def create_xml_from_ledger():
             amount = check_dcb(df_bank, i) #df_bank[9].iloc[i]
             print(f"Bank Data {i}: ", date, tick, amount)
             # 12 Tally XML entries for bank entry
-            # TODO: add date/year from excel
             line('DSPVCHDATE', f'{date}')
             line('DSPVCHLEDACCOUNT', f'{tick}')
             line('NAMEFIELD', '')
@@ -138,12 +137,23 @@ def create_xml_from_ledger():
             line('DSPVCHCRAMT', f'{amount}')
             line('DSPEXPLVCHNUMBER', 'placeholder')
 
-        # FIXME: update Journal Entry
+        # FIXME: update Journal Entry logic
         doc.asis('<!--Journal Entry-->')
         for i in range(0, no_of_journal_entries):
             date = df_journal[0].iloc[i].strftime('%d-%b-%y')
             amount = df_journal[10].iloc[i]
             print(f"Journal Data {i}: ", date, amount)
+            line('DSPVCHDATE', f'{date}')
+            line('DSPVCHLEDACCOUNT', '(as per details)')
+            line('NAMEFIELD', '')
+            line('INFOFIELD', '')
+            line('INDDEVDCREATDBY', '')
+            line('INDDEVDCREATTIME', '')
+            line('INDDEVDCHKBY', '')
+            line('INDDEVDATEBY', '')
+            line('DSPVCHTYPE', 'Jrnl')
+            line('DSPVCHCRAMT', f'{amount}')
+            line('DSPEXPLVCHNUMBER', '')
 
         doc.asis('<!--Trades Entry-->')
         for i in range(0, no_of_trades):
